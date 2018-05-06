@@ -16,9 +16,9 @@
 _realname=python3
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-_pybasever=3.5
-pkgver=${_pybasever}.2
-pkgrel=2
+_pybasever=3.6
+pkgver=${_pybasever}.5
+pkgrel=1
 pkgdesc="A high-level scripting language (mingw-w64)"
 arch=('any')
 license=('PSF')
@@ -26,7 +26,6 @@ url="https://www.python.org/"
 depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
          "${MINGW_PACKAGE_PREFIX}-expat"
          "${MINGW_PACKAGE_PREFIX}-bzip2"
-         "${MINGW_PACKAGE_PREFIX}-gdbm"
          "${MINGW_PACKAGE_PREFIX}-libffi"
          "${MINGW_PACKAGE_PREFIX}-ncurses"
          "${MINGW_PACKAGE_PREFIX}-openssl"
@@ -35,6 +34,7 @@ depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
          "${MINGW_PACKAGE_PREFIX}-tk"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-xz"
+         "${MINGW_PACKAGE_PREFIX}-sqlite3"
         )
 makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
 options=('!makeflags') # '!strip' 'debug')
@@ -46,10 +46,8 @@ source=("https://www.python.org/ftp/python/${pkgver%rc?}/Python-${pkgver}.tar.xz
         0130-MINGW-configure-MACHDEP-and-platform-for-build.patch
         0140-MINGW-preset-configure-defaults.patch
         0150-MINGW-configure-largefile-support-for-windows-builds.patch
-        0160-MINGW-add-wincrypt.h-in-Python-random.c.patch
         0170-MINGW-add-srcdir-PC-to-CPPFLAGS.patch
         0180-MINGW-init-system-calls.patch
-        0190-MINGW-detect-REPARSE_DATA_BUFFER.patch
         0200-MINGW-build-in-windows-modules-winreg.patch
         0210-MINGW-determine-if-pwdmodule-should-be-used.patch
         0220-MINGW-default-sys.path-calculations-for-windows-plat.patch
@@ -85,7 +83,6 @@ source=("https://www.python.org/ftp/python/${pkgver%rc?}/Python-${pkgver}.tar.xz
         0520-py3k-mingw-ntthreads-vs-pthreads.patch
         0530-mingw-system-libffi.patch
         0540-mingw-semicolon-DELIM.patch
-        0550-mingw-regen-use-stddef_h.patch
         0555-msys-mingw-prefer-unix-sep-if-MSYSTEM.patch
         0560-mingw-use-posix-getpath.patch
         0565-mingw-add-ModuleFileName-dir-to-PATH.patch
@@ -98,7 +95,6 @@ source=("https://www.python.org/ftp/python/${pkgver%rc?}/Python-${pkgver}.tar.xz
         0660-mingw-use-backslashes-in-compileall-py.patch
         0670-msys-convert_path-fix-and-root-hack.patch
         0690-allow-static-tcltk.patch
-        0700-CROSS-avoid-ncursesw-include-path-hack.patch
         0710-CROSS-properly-detect-WINDOW-_flags-for-different-nc.patch
         0720-mingw-pdcurses_ISPAD.patch
         0730-mingw-fix-ncurses-module.patch
@@ -125,117 +121,185 @@ source=("https://www.python.org/ftp/python/${pkgver%rc?}/Python-${pkgver}.tar.xz
         0960-mingw-w64-XP3-compat-GetProcAddress-GetFinalPathNameByHandleW.patch
         0970-Add-AMD64-to-sys-config-so-msvccompiler-get_build_version-works.patch
         0980-mingw-readline-features-skip.patch
+        0990-MINGW-link-with-additional-library.patch
         1010-install-msilib.patch
-        1500-mingw-w64-dont-look-in-DLLs-folder-for-python-dll.patch)
+        1500-mingw-w64-dont-look-in-DLLs-folder-for-python-dll.patch
+        1600-fix-disable-blake2-sse.patch
+        1610-fix-have-wspawnv.patch
+        1620-fix-signal-module-build.patch
+        1630-build-winconsoleio.patch
+        1640-dont-include-consoleapi-h.patch
+        1650-expose-sem_unlink.patch
+        1690-need-win7-headers.patch
+        1700-cygpty-isatty-disable-readline.patch
+        1701-disable-broken-gdbm-module.patch
+        1800-link-win-resource-files-and-build-pythonw.patch
+        smoketests.py)
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
+
+del_file_exists() {
+  for _fname in "$@"
+  do
+    if [ -f ${_fname} ]; then
+      rm -rf ${_fname}
+    fi
+  done
+}
+# =========================================== #
 
 prepare() {
   cd "${srcdir}/Python-${pkgver}"
 
   # these are created by patches
-  rm -f Misc/config_mingw Misc/cross_mingw32 Python/fileblocks.c
+  rm -f Misc/config_mingw \
+        Misc/cross_mingw32 \
+        Python/fileblocks.c
 
   plain "Apply Ray Donnelly's should-be-upstreamed patches"
-  patch -Np1 -i "${srcdir}"/0000-make-_sysconfigdata.py-relocatable.patch
-  patch -Np1 -i "${srcdir}"/0001-fix-_nt_quote_args-using-subprocess-list2cmdline.patch
+  apply_patch_with_msg \
+    0000-make-_sysconfigdata.py-relocatable.patch \
+    0001-fix-_nt_quote_args-using-subprocess-list2cmdline.patch
 
   plain "Apply Roumen Petrov's core patches (14)"
-  patch -Np1 -i "${srcdir}"/0100-MINGW-BASE-use-NT-thread-model.patch
-  patch -Np1 -i "${srcdir}"/0110-MINGW-translate-gcc-internal-defines-to-python-platf.patch
-  patch -Np1 -i "${srcdir}"/0130-MINGW-configure-MACHDEP-and-platform-for-build.patch
-  patch -Np1 -i "${srcdir}"/0140-MINGW-preset-configure-defaults.patch
-  patch -Np1 -i "${srcdir}"/0150-MINGW-configure-largefile-support-for-windows-builds.patch
-  patch -Np1 -i "${srcdir}"/0160-MINGW-add-wincrypt.h-in-Python-random.c.patch
-  patch -Np1 -i "${srcdir}"/0170-MINGW-add-srcdir-PC-to-CPPFLAGS.patch
-  patch -Np1 -i "${srcdir}"/0180-MINGW-init-system-calls.patch
-  patch -Np1 -i "${srcdir}"/0190-MINGW-detect-REPARSE_DATA_BUFFER.patch
-  patch -Np1 -i "${srcdir}"/0200-MINGW-build-in-windows-modules-winreg.patch
-  patch -Np1 -i "${srcdir}"/0210-MINGW-determine-if-pwdmodule-should-be-used.patch
-  patch -Np1 -i "${srcdir}"/0220-MINGW-default-sys.path-calculations-for-windows-plat.patch
-  patch -Np1 -i "${srcdir}"/0230-MINGW-AC_LIBOBJ-replacement-of-fileblocks.patch
-  patch -Np1 -i "${srcdir}"/0240-MINGW-use-main-to-start-execution.patch
+  apply_patch_with_msg \
+    0100-MINGW-BASE-use-NT-thread-model.patch \
+    0110-MINGW-translate-gcc-internal-defines-to-python-platf.patch \
+    0130-MINGW-configure-MACHDEP-and-platform-for-build.patch \
+    0140-MINGW-preset-configure-defaults.patch \
+    0150-MINGW-configure-largefile-support-for-windows-builds.patch \
+    0170-MINGW-add-srcdir-PC-to-CPPFLAGS.patch \
+    0180-MINGW-init-system-calls.patch \
+    0200-MINGW-build-in-windows-modules-winreg.patch \
+    0210-MINGW-determine-if-pwdmodule-should-be-used.patch \
+    0220-MINGW-default-sys.path-calculations-for-windows-plat.patch \
+    0230-MINGW-AC_LIBOBJ-replacement-of-fileblocks.patch \
+    0240-MINGW-use-main-to-start-execution.patch
 
   plain "Apply Roumen Petrov's compiler patch (2)"
-  patch -Np1 -i "${srcdir}"/0250-MINGW-compiler-customize-mingw-cygwin-compilers.patch
-  patch -Np1 -i "${srcdir}"/0260-MINGW-compiler-enable-new-dtags.patch
+  apply_patch_with_msg \
+    0250-MINGW-compiler-customize-mingw-cygwin-compilers.patch \
+    0260-MINGW-compiler-enable-new-dtags.patch
 
   plain "Apply Roumen Petrov's extensions patches (23)"
-  patch -Np1 -i "${srcdir}"/0270-CYGWIN-issue13756-Python-make-fail-on-cygwin.patch
-  patch -Np1 -i "${srcdir}"/0290-issue6672-v2-Add-Mingw-recognition-to-pyport.h-to-al.patch
-  patch -Np1 -i "${srcdir}"/0300-MINGW-configure-for-shared-build.patch
-  patch -Np1 -i "${srcdir}"/0310-MINGW-dynamic-loading-support.patch
-  patch -Np1 -i "${srcdir}"/0320-MINGW-implement-exec-prefix.patch
-  patch -Np1 -i "${srcdir}"/0330-MINGW-ignore-main-program-for-frozen-scripts.patch
-  patch -Np1 -i "${srcdir}"/0340-MINGW-setup-exclude-termios-module.patch
-  patch -Np1 -i "${srcdir}"/0350-MINGW-setup-_multiprocessing-module.patch
-  patch -Np1 -i "${srcdir}"/0360-MINGW-setup-select-module.patch
-  patch -Np1 -i "${srcdir}"/0370-MINGW-setup-_ctypes-module-with-system-libffi.patch
-  patch -Np1 -i "${srcdir}"/0380-MINGW-defect-winsock2-and-setup-_socket-module.patch
-  patch -Np1 -i "${srcdir}"/0390-MINGW-exclude-unix-only-modules.patch
-  patch -Np1 -i "${srcdir}"/0400-MINGW-setup-msvcrt-and-_winapi-modules.patch
-  patch -Np1 -i "${srcdir}"/0410-MINGW-build-extensions-with-GCC.patch
-  patch -Np1 -i "${srcdir}"/0420-MINGW-use-Mingw32CCompiler-as-default-compiler-for-m.patch
-  patch -Np1 -i "${srcdir}"/0430-MINGW-find-import-library.patch
-  patch -Np1 -i "${srcdir}"/0440-MINGW-setup-_ssl-module.patch
-  patch -Np1 -i "${srcdir}"/0460-MINGW-generalization-of-posix-build-in-sysconfig.py.patch
-  patch -Np1 -i "${srcdir}"/0462-MINGW-support-stdcall-without-underscore.patch
-  patch -Np1 -i "${srcdir}"/0464-use-replace-instead-rename-to-avoid-failure-on-windo.patch
-  patch -Np1 -i "${srcdir}"/0470-MINGW-avoid-circular-dependency-from-time-module-dur.patch
-  patch -Np1 -i "${srcdir}"/0480-MINGW-generalization-of-posix-build-in-distutils-sys.patch
-  patch -Np1 -i "${srcdir}"/0490-MINGW-customize-site.patch
+  apply_patch_with_msg \
+    0270-CYGWIN-issue13756-Python-make-fail-on-cygwin.patch \
+    0290-issue6672-v2-Add-Mingw-recognition-to-pyport.h-to-al.patch \
+    0300-MINGW-configure-for-shared-build.patch \
+    0310-MINGW-dynamic-loading-support.patch \
+    0320-MINGW-implement-exec-prefix.patch \
+    0330-MINGW-ignore-main-program-for-frozen-scripts.patch \
+    0340-MINGW-setup-exclude-termios-module.patch \
+    0350-MINGW-setup-_multiprocessing-module.patch \
+    0360-MINGW-setup-select-module.patch \
+    0370-MINGW-setup-_ctypes-module-with-system-libffi.patch \
+    0380-MINGW-defect-winsock2-and-setup-_socket-module.patch \
+    0390-MINGW-exclude-unix-only-modules.patch \
+    0400-MINGW-setup-msvcrt-and-_winapi-modules.patch \
+    0410-MINGW-build-extensions-with-GCC.patch \
+    0420-MINGW-use-Mingw32CCompiler-as-default-compiler-for-m.patch \
+    0430-MINGW-find-import-library.patch \
+    0440-MINGW-setup-_ssl-module.patch \
+    0460-MINGW-generalization-of-posix-build-in-sysconfig.py.patch \
+    0462-MINGW-support-stdcall-without-underscore.patch \
+    0464-use-replace-instead-rename-to-avoid-failure-on-windo.patch \
+    0470-MINGW-avoid-circular-dependency-from-time-module-dur.patch \
+    0480-MINGW-generalization-of-posix-build-in-distutils-sys.patch \
+    0490-MINGW-customize-site.patch
 
   plain "Apply Ray Donnelly's general/cross patches (42)"
-  patch -Np1 -i "${srcdir}"/0500-add-python-config-sh.patch
-  patch -Np1 -i "${srcdir}"/0510-cross-darwin-feature.patch
-  patch -Np1 -i "${srcdir}"/0520-py3k-mingw-ntthreads-vs-pthreads.patch
-  patch -Np1 -i "${srcdir}"/0530-mingw-system-libffi.patch
-  patch -Np1 -i "${srcdir}"/0540-mingw-semicolon-DELIM.patch
-  patch -Np1 -i "${srcdir}"/0550-mingw-regen-use-stddef_h.patch
-  patch -Np1 -i "${srcdir}"/0555-msys-mingw-prefer-unix-sep-if-MSYSTEM.patch
-  patch -Np1 -i "${srcdir}"/0560-mingw-use-posix-getpath.patch
-  patch -Np1 -i "${srcdir}"/0565-mingw-add-ModuleFileName-dir-to-PATH.patch
-  patch -Np1 -i "${srcdir}"/0570-mingw-add-BUILDIN_WIN32_MODULEs-time-msvcrt.patch
+  apply_patch_with_msg \
+    0500-add-python-config-sh.patch \
+    0510-cross-darwin-feature.patch \
+    0520-py3k-mingw-ntthreads-vs-pthreads.patch \
+    0530-mingw-system-libffi.patch \
+    0540-mingw-semicolon-DELIM.patch \
+    0555-msys-mingw-prefer-unix-sep-if-MSYSTEM.patch \
+    0560-mingw-use-posix-getpath.patch \
+    0565-mingw-add-ModuleFileName-dir-to-PATH.patch \
+    0570-mingw-add-BUILDIN_WIN32_MODULEs-time-msvcrt.patch
   # 0610- changed to not using -DVPATH='"$(VPATH_b2h)"' anymore since VPATH is
   # relative, therefore getpath.c:355: joinpath(prefix, vpath) works naturally
-  patch -Np1 -i "${srcdir}"/0610-msys-cygwin-semi-native-build-sysconfig.patch
-  patch -Np1 -i "${srcdir}"/0620-mingw-sysconfig-like-posix.patch
-  patch -Np1 -i "${srcdir}"/0630-mingw-_winapi_as_builtin_for_Popen_in_cygwinccompiler.patch
-  patch -Np1 -i "${srcdir}"/0640-mingw-x86_64-size_t-format-specifier-pid_t.patch
-  patch -Np1 -i "${srcdir}"/0650-cross-dont-add-multiarch-paths-if-cross-compiling.patch
-  patch -Np1 -i "${srcdir}"/0660-mingw-use-backslashes-in-compileall-py.patch
-  patch -Np1 -i "${srcdir}"/0670-msys-convert_path-fix-and-root-hack.patch
-  patch -Np1 -i "${srcdir}"/0690-allow-static-tcltk.patch
-  patch -Np1 -i "${srcdir}"/0700-CROSS-avoid-ncursesw-include-path-hack.patch
-  patch -Np1 -i "${srcdir}"/0710-CROSS-properly-detect-WINDOW-_flags-for-different-nc.patch
-  patch -Np1 -i "${srcdir}"/0720-mingw-pdcurses_ISPAD.patch
-  patch -Np1 -i "${srcdir}"/0730-mingw-fix-ncurses-module.patch
-  patch -Np1 -i "${srcdir}"/0740-grammar-fixes.patch
-  patch -Np1 -i "${srcdir}"/0750-builddir-fixes.patch
-  patch -Np1 -i "${srcdir}"/0760-msys-monkeypatch-os-system-via-sh-exe.patch
-  patch -Np1 -i "${srcdir}"/0770-msys-replace-slashes-used-in-io-redirection.patch
-  patch -Np1 -i "${srcdir}"/0790-mingw-add-_exec_prefix-for-tcltk-dlls.patch
-  patch -Np1 -i "${srcdir}"/0800-mingw-install-layout-as-posix.patch
-  patch -Np1 -i "${srcdir}"/0810-remove_path_max.default.patch
-  patch -Np1 -i "${srcdir}"/0820-dont-link-with-gettext.patch
-  patch -Np1 -i "${srcdir}"/0830-ctypes-python-dll.patch
-  patch -Np1 -i "${srcdir}"/0840-gdbm-module-includes.patch
-  patch -Np1 -i "${srcdir}"/0850-use-gnu_printf-in-format.patch
-  patch -Np1 -i "${srcdir}"/0860-fix-_Py_CheckPython3-prototype.patch
-  patch -Np1 -i "${srcdir}"/0870-mingw-fix-ssl-dont-use-enum_certificates.patch
-  patch -Np1 -i "${srcdir}"/0890-mingw-build-optimized-ext.patch
-  patch -Np1 -i "${srcdir}"/0900-cygwinccompiler-dont-strip-modules-if-pydebug.patch
-  patch -Np1 -i "${srcdir}"/0910-fix-using-dllhandle-and-winver-mingw.patch
-  patch -Np1 -i "${srcdir}"/0920-mingw-add-LIBPL-to-library-dirs.patch
-  patch -Np1 -i "${srcdir}"/0930-mingw-w64-build-overlapped-module.patch
-  patch -Np1 -i "${srcdir}"/0940-mingw-w64-Also-define-_Py_BEGIN_END_SUPPRESS_IPH-when-Py_BUILD_CORE_MODULE.patch
-  patch -Np1 -i "${srcdir}"/0950-mingw-w64-XP3-compat-GetProcAddress-GetTickCount64.patch
-  patch -Np1 -i "${srcdir}"/0960-mingw-w64-XP3-compat-GetProcAddress-GetFinalPathNameByHandleW.patch
-  patch -Np1 -i "${srcdir}"/0970-Add-AMD64-to-sys-config-so-msvccompiler-get_build_version-works.patch
-  patch -Np1 -i "${srcdir}"/0980-mingw-readline-features-skip.patch
-
-  patch -Np1 -i "${srcdir}"/1010-install-msilib.patch
+  apply_patch_with_msg \
+    0610-msys-cygwin-semi-native-build-sysconfig.patch \
+    0620-mingw-sysconfig-like-posix.patch \
+    0630-mingw-_winapi_as_builtin_for_Popen_in_cygwinccompiler.patch \
+    0640-mingw-x86_64-size_t-format-specifier-pid_t.patch \
+    0650-cross-dont-add-multiarch-paths-if-cross-compiling.patch \
+    0660-mingw-use-backslashes-in-compileall-py.patch \
+    0670-msys-convert_path-fix-and-root-hack.patch
+    0690-allow-static-tcltk.patch
+  #patch -Np1 -i "${srcdir}"/0710-CROSS-properly-detect-WINDOW-_flags-for-different-nc.patch
+  apply_patch_with_msg \
+    0720-mingw-pdcurses_ISPAD.patch \
+    0730-mingw-fix-ncurses-module.patch \
+    0740-grammar-fixes.patch \
+    0750-builddir-fixes.patch \
+    0760-msys-monkeypatch-os-system-via-sh-exe.patch \
+    0770-msys-replace-slashes-used-in-io-redirection.patch \
+    0790-mingw-add-_exec_prefix-for-tcltk-dlls.patch \
+    0800-mingw-install-layout-as-posix.patch \
+    0810-remove_path_max.default.patch \
+    0820-dont-link-with-gettext.patch \
+    0830-ctypes-python-dll.patch \
+    0840-gdbm-module-includes.patch \
+    0850-use-gnu_printf-in-format.patch \
+    0860-fix-_Py_CheckPython3-prototype.patch \
+    0870-mingw-fix-ssl-dont-use-enum_certificates.patch \
+    0890-mingw-build-optimized-ext.patch \
+    0900-cygwinccompiler-dont-strip-modules-if-pydebug.patch \
+    0910-fix-using-dllhandle-and-winver-mingw.patch \
+    0920-mingw-add-LIBPL-to-library-dirs.patch \
+    0930-mingw-w64-build-overlapped-module.patch \
+    0940-mingw-w64-Also-define-_Py_BEGIN_END_SUPPRESS_IPH-when-Py_BUILD_CORE_MODULE.patch \
+    0950-mingw-w64-XP3-compat-GetProcAddress-GetTickCount64.patch \
+    0960-mingw-w64-XP3-compat-GetProcAddress-GetFinalPathNameByHandleW.patch \
+    0970-Add-AMD64-to-sys-config-so-msvccompiler-get_build_version-works.patch
+    0980-mingw-readline-features-skip.patch
+    0990-MINGW-link-with-additional-library.patch
+    1010-install-msilib.patch
 
   plain "Apply patch contributed by Frode Solheim from FS-UAE project (1)"
-  patch -Np1 -i "${srcdir}"/1500-mingw-w64-dont-look-in-DLLs-folder-for-python-dll.patch
+  apply_patch_with_msg \
+    1500-mingw-w64-dont-look-in-DLLs-folder-for-python-dll.patch
+
+  plain "New patches added for the update from 3.5.3 to 3.6.1"
+  apply_patch_with_msg \
+    1600-fix-disable-blake2-sse.patch \
+    1610-fix-have-wspawnv.patch \
+    1620-fix-signal-module-build.patch \
+    1630-build-winconsoleio.patch \
+    1640-dont-include-consoleapi-h.patch \
+    1650-expose-sem_unlink.patch
+
+  # 3.6.3 needs some win 7 headers at build time for optional win 7 features
+  apply_patch_with_msg \
+    1690-need-win7-headers.patch
+
+  # Extend some isatty calls to check for mintty when checking for
+  # a terminal output. Disable the readline module under non-mintty as it
+  # breaks things with a real console (like conemu or winpty)
+  # https://github.com/Alexpux/MINGW-packages/issues/2645
+  # https://github.com/Alexpux/MINGW-packages/issues/2656
+  apply_patch_with_msg \
+    1700-cygpty-isatty-disable-readline.patch
+
+  # gdbm is broken and as a result breaks dbm/shelve.
+  # Don't include it so the dbm.dumb backend is used instead,
+  # like with the official CPython build.
+  apply_patch_with_msg \
+    1701-disable-broken-gdbm-module.patch
+
+  # https://github.com/Alexpux/MINGW-packages/issues/3139
+  apply_patch_with_msg \
+    1800-link-win-resource-files-and-build-pythonw.patch
 
   autoreconf -vfi
 
@@ -259,10 +323,16 @@ prepare() {
   rm -r Modules/_ctypes/{darwin,libffi}*
 }
 
-# check() {
-#   cd "${srcdir}/build-${CARCH}"
-#   make test EXTRATESTOPTS="-v"
-# }
+check() {
+  cd "${srcdir}/build-${CARCH}"
+
+  # Some basic tests to ensure nothing major or MSYS2 specific features are
+  # broken
+  ./python.exe "${srcdir}/smoketests.py"
+  MSYSTEM= ./python.exe "${srcdir}/smoketests.py"
+
+  # make test EXTRATESTOPTS="-v"
+}
 
 build() {
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
@@ -304,7 +374,6 @@ build() {
     --without-ensurepip \
     "${_extra_config[@]}" \
     OPT=""
-    #--with-dbmliborder='gdbm:ndbm'
 
   make
 }
@@ -367,112 +436,104 @@ package() {
 
   # replace paths in sysconfig
   sed -i "s|${pkgdir}${MINGW_PREFIX}|${MINGW_PREFIX}|g" \
-    "${pkgdir}${MINGW_PREFIX}"/lib/python${_pybasever}/_sysconfigdata.py \
+    "${pkgdir}${MINGW_PREFIX}"/lib/python${_pybasever}/lib-dynload/_sysconfigdata*.py \
     "${pkgdir}${MINGW_PREFIX}"/lib/python${_pybasever}/smtpd.py
-
-  # Create python executable with windows subsystem
-  cp -f "${pkgdir}${MINGW_PREFIX}"/bin/python3.exe "${pkgdir}${MINGW_PREFIX}"/bin/python3w.exe
-  ${MINGW_PREFIX}/bin/objcopy --subsystem windows "${pkgdir}${MINGW_PREFIX}"/bin/python3w.exe
-
-  # Add a wrapper script to force -i when invoking python. Please don't move this into a patch as
-  # hopefully one day we won't need this hack (when we replace mintty with a real console).
-  _exename="python3"
-  mv "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}.exe "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}_exe
-  echo "#!/usr/bin/env bash"                                           > "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  echo "if [ \$# -eq 0 ]; then"                                       >> "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  echo '  "$( dirname ${BASH_SOURCE[0]} )/'${_exename}'.exe" -i "$@"' >> "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  echo "else"                                                         >> "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  echo '  "$( dirname ${BASH_SOURCE[0]} )/'${_exename}'.exe" "$@"'    >> "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  echo "fi"                                                           >> "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}
-  mv "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}_exe "${pkgdir}"${MINGW_PREFIX}/bin/${_exename}.exe
 }
 
-sha256sums=('0010f56100b9b74259ebcd5d4b295a32324b58b517403a10d1a2aa7cb22bca40'
-            '4cc654f8caef73b385a57278d4a57578941ec48a5a69bcf7f100f85a5c9e5ac0'
-            '166e45a247f440df92c97d3e4392daf67c79d086b3de8ff4f4698d113bad4172'
-            '010639b0e250a5aa8ece1f44a30c29e4a8d2e38bc48345c53a2f1f216bac668f'
-            '249ae89279ecace5c522279f613a9f5edbb76fe89811e376a195df51c2dc263e'
-            'f63b7213ef0c360969ce84bb4e91f95f98a360451688f1193b30cd8a2073dbd1'
-            '04798443a7b121d3098684e05a815e9a6f501106b02f8a21e4dc043d7a297678'
-            '2d70d39c557f455d3a4d96272886fa1c8b1fadf2da3ece72f76e53a751d23661'
-            'aa8f63c82a39f6bf4dc3b1c74e6dab999f38b978de690fcd5bef43bc2a582025'
-            '889bb9291457f6fcab8e27793cf4abd6ceae59898594580174e26287a0118237'
-            '3394c37ea4182786095216092c49bfd3d4418fb5c1598686c93d8515624b5cbd'
-            '32b1a3a6ffa3eda9840c67a29fd6098caba530a92f19d56128fa61aaa83a4f6a'
-            '6c367976c39dba142323f005841843cba52475cc99bfc741843f0faaa6cc86e9'
-            '711b45588efa31313564e2d784b1eeddcfc2468da7b7dd14583a0f45ff2060fb'
-            '3aca98254267c1fa48297e231c4efaf038a2cfa29cb555af623ca6c67fdb2b74'
-            '4157c6ac294b49d34f1c122cd4ecd3afe78573615986d175b2234af5e801db0c'
-            '83bf053e9bbea0f5cc116ebc478e92948df4019a4ab7241ff2aa6c880770af72'
-            '6250565f6f1a1e907a1778f1fdc033f78cca0770d4ff0451aa5de10e32f9297d'
-            '360980a89a2fcc7b13ac1a6ce8425bb37fefe768a89de6cdc8aa91aa17d16942'
-            'a54870ec01b827b2fad052a3aad5bcf29db45556799dc15773a66b0aacec3a11'
-            '060bf30d475522dbb3d40d20da9bf1e3dfa0806c8d436cdc8a73480c5900963d'
-            'af51615b98a7f96ca4639cbc80e9c3725fcbbbe2cd9951fafa7ad523ee173228'
-            '74087a1c409ab24403079d7989efe887f04b1072fd1cfa834d5815067e11fea3'
-            'a91e12c6cb1be70355f2108388291f56ce5e1ac22fde92a2c1cb2c2cb1f1fe2e'
-            'd4ae0fdf5ba2c0d1994e2c2b5377d423854033243e874649e1eba6a2ab9f679d'
-            'd62ed216701bf082b91a673f0ed354e6af8fd2b88ff9f568e98a1199bef51635'
-            '1bf3e3f0d0cfa4b711570e01d4f5720caa050fcfff0f41b023604db0bfcc00ae'
-            'e5015d0dc5983a56ce3deb08b75c78210cfe207077f8e470fa70c0c33b352c95'
-            '530f69c113aeb0c9931c409a55083726d6ad48b7cce5535b762121b894a15312'
-            '7d24d510b5a8ef980cb44cdd0ef8bb838f3e73d2b4c41017b2f5b7802c2e72d0'
-            '8557962bf70d3c913495d07a22b801fed075b5ecbb487261b26a4214247356de'
-            '4f3e05d6e0524fcb165ff7992075bc7da90fbe345a1ef3310f0b7b529026dbbc'
-            '12822e67b10922d0f718da2acd693bd566ce53df0b475c5dcb9029da2535d8c1'
-            'e1ffde6ec0cfcc45db91cd16a519394efb4ad84623b94edddce18ceb90d7a1ac'
-            '705596440ecc67a35ec18d536afc4318d28bdaddb38c508736d8916598cb372f'
-            '85a2da84ceabc8093f927377514f3823c1c9a6b54dfd5a6a11ce95dbf1c67324'
-            'b51406cb38f70b4e812c3b015d7102a6b11255e302d57da7c4198dffe875d07e'
-            '64f9b871b980a43f302d2b225b4ce08530b2d734c9199185563e100b1a7fb7bc'
-            'ec6a51890d51da924544f26f055e01040111e9847b0c40448a7e4e017493e9a0'
-            '78dc2ac8eaaccf19fc42551e784f01f2f147785814bfc68d891957ba35b5d866'
-            '5c181aaa52d1cbe42d7538af85f08362bca969678c2c83cd1855fdaf1bb401fd'
-            'fb874e1a19b2c8f9498896796d20cc472e2e93bdc6ad8c9c2af2b0367a7d160f'
-            'fd5a7ae2860b98086875d3a61ced283333b47b1d64765624fb75167718ad5b33'
-            '1bcc89ed500f114be330721ad0dbb9a213a2f959ab942375ddecb08f142a196c'
-            'fe4a73c72e29dc508ecdc8467778392f751504b68be8217c8ce95c898db5ab77'
-            'ab6d2450495212d7c402bd5a9a4fc64527ee54a9509825ba62312f13e1252a8a'
-            '7ab2a3a15148a4f90d45f4dbc8181f2433e0354f25b7a0de87e4cdfc06a3ed83'
-            '93e051997b9fe8417628ffb3c2b90a4e8aa7e38aa5f397a0f93922ff0888d760'
-            'a04d79ede2d44eed7ab524b3792348536bd8ef6bf9758fca8e41637cdd2be8c1'
-            '5a70e1dbf5c976635b35576544a33d2e69037c225c4548d51d61077f58228b18'
-            'faa3389ddc8d927eb08b447066e3cc21486376e517ccad4a5e2f0300daa9f15a'
-            '32c28c540d641d2d796582352507fc8377b8b757a794a293cc961148c2412bb1'
-            '863c702bb201c38241738758dcbe94b989d043917956e8af38035210da1a47b3'
-            '23dbf79f9c0780d175f5c23bdc2d6d891ab354f4432dee14a2806c3cd546a90a'
-            '6f8c7dd8f690de30f7219b23823bcf7a1289e8163e174c1cd135f70d746eb2d1'
-            '2c7ecd5eb38cef54e64d5cf5e34d61451f0ed437d776a978b7a4a4c2f88eb206'
-            'ac10b20ffcf652e26575c376825ee41d94dae1c9ea36fd9e0106122e6ebc3f4f'
-            '315c357dcd91fb1f34dcaf1c6d4cf2a23e7101931e55f4cb0793936bf7dbb606'
-            'bc440ca4748fd2559c39c516b3e0d70d5e58d0e9a2af995f019ddbd6d61fcd88'
-            'a4053159e3b64517c1006ec0ecc43588e8d28111e8251b9b7348cf696dbc1afa'
-            '66db319cdba1ee487e3f402c0cd47491dc4935f2386d612f755ef0718003b2ac'
+sha256sums=('f434053ba1b5c8a5cc597e966ead3c5143012af827fd3f0697d21450bb8d87a6'
+            '15fcd682901a7d3b76c5616e991dcb1616a823117f0cd3169e8df34c09e2d108'
+            '00ee34263e56d073dd4bed327dab7f28d35a175ba552be54bd31fcfe2a507543'
+            '9d6feeb319d5d82304b4b467579024f54c58f837148ae768ebe76cf5423c3ea3'
+            '08c538159182534cf4cb46e5a6dfd4ae7c0939a53d7e750e1f4c002f29580615'
+            '250363160794111313d07cf49b9f461f081ba621e2de44bedba452959b714fe9'
+            '9aade12717e34bf77a6e29a501e71acea1a9a067c103f843931be265d55ba5c3'
+            'e9b0589928548c98630609ce2351dcb32dfa1a92dc77e207c487c453c34cf6c1'
+            '014558f3083505477ab8a106d0aac96706dad7fde24cab46cbc849aba82f1762'
+            '56a4dd7f627635b811517b08004f1afc1549abeb18f45c63b1c8d8dc3e2c89b1'
+            '3ef304b736b0a59d8561fb1fb1aacadd7e7b82c43213a311f1121d8326c6211a'
+            'ad194d563368031e170abd225ddf834744215a7db6b51b2fda19e062638f268c'
+            'c0584864511f6a608ef5e613b338b17284c7d9aa811063e76b029664286552d4'
+            '9d9257718a48a6db6e779b8ed08efd69873e1ec11a0317116f5919ef6b501f26'
+            '6d147fad9fafb89e91a6effbb3ddff5e9d804a5a56500d88b83169d389c783f6'
+            '2da98aea69050989d6d35b8c583346ace6ed357a4ef20bb313d4fad871750f2c'
+            '217d61d33b3b6af2bdc40bcda3d0e1cf0b35f5fc05cbd36629253f6d00018d9d'
+            '9095f717510892b76c2f10d51a12096f03c9138aada04c357564cd0ffc8d5b34'
+            '0cab47fda75024ae1131db771fb78df519e7dd10f63c6e3726bab6008822416a'
+            '8f147960d444564c9e63b2cff57a721908a75b4f297425412c3030be695bdd62'
+            'f052e0a960e90246062a647ea3f857be3bc6aeffe5b958406a475064c3fb10b1'
+            '32ddf02e4be9335445553f92f0d27476ce4ae05989fb6fe37b82b92a2e2c7c2b'
+            '232a644cecd75323510ee68507f96a35bd2f5c02f08adf21cb5260b67f7e8e73'
+            '48bd1f91fcce6da60edaafae626e997387f48155a1ae1a5837890c56437cf404'
+            '842ec633a6c0cfe7b2f77820a98885e47d53596abb543d27e5988d6bcd77b3e4'
+            '91473e14b85a9bed9eff21840ef28e71324efad06c25889f39d55bb9ef134173'
+            '2fb436ebebfea9ec68ec69fee1d0c42ea862da7282394a6c7ca3474567795c35'
+            '55d5a1ab8ee338141d867278ec62bb254310910531fe33a90b49815de8afee26'
+            '8e21169ca12c081f9f1ce54b187f73a26d2924029b9fa125b7858128c9da8ec0'
+            '476c1066580562e67eb45ddb250339ce58312704bc6532c69d1fb87934b94962'
+            'ae94a39e99a17c510dde9f9953df89e2614fae97458afde8b44171ef68c17e15'
+            'd4eba2c4d78dd58dfb2d2da1e3b2a22c104e5fa3d78784916b1593e80780bb67'
+            'e4208040eaaee7eedee7d39bc5587608b5313bba3e21030bc27b7568c15fab53'
+            '2f184f7fb699ac239c4ab83143b197d3be601751f411d87b0928f5ab49e1aef5'
+            '644d7bf31f74fb9a0ff0ab4b61608e1c98a9781e8ec05d1faee56d4a3bc1fef1'
+            '070ae4b558731c5831e1d6d512d57068cfb9ca370955456db91c225a1dc3e814'
+            '7433a7485360b96730b1425f65a58aeae04f680737912e20b214409040d455af'
+            'c6fa00f86388f84b72d11dfc2d32a2bee1bc19160ac13e5285f214f27baa05cc'
+            '7acbddc62c73209c30086e6b65e1c5b5ee2bc16ef20a3a8d6e7b87d739435de5'
+            '506a1b31a79c8748390df807c5a6cf24b9b9be70e7d19e778207df425e636691'
+            '6bb2ca71df938342c06c3ffce2201049c2367143e8368074faba046756028b42'
+            '72cdcfd5dccff194bd86cc89f20d3298860664ed562b1a952cc6336013de912b'
+            '42a861d7389d2f8a29b66d5a620a0810f019aaed1fb103020df35087d0a3d83b'
+            'cbcb68e25c93ed670fe03a1bbe9cf4eda08f39b4a1356dfd8d797b65335c4964'
+            '46c43cd2d0d87fd28b21e373413dabff6081272ed73d754f145ac2948bd943e6'
+            'b520a0acd1efe3a6484f0ac840f295807505fea2ac910a97f40d703ec8c935e4'
+            '721a1cadd9d9df1e1a674e13a2e047247e31b0541784e39436e214c7de194997'
+            '3e1d588bc9afa6c94e30793b005f574cf0626eaef9e863e57afbcd70abdf011e'
+            '52bcc4897c24e3e952a39d40f1a4d2d14c6fe5c76dc8217b6ba986b098426ec3'
+            '961a89adec4b0d0cd98d03f06fdc6aefade097e5d395ecfac6623f271ced02c3'
+            'c82f17e93c38bdac64d5aeb5dd849c881ec8b8965e0908e2e139b1e98b11fcfb'
+            '666c8dd8a4018f9aef40f704fdfc9c9867ac6e13c92a4492202897d05aa589ce'
+            'a5539ec33f326ad01f25ef3ccb7580d0e61fcbac7caf58ea26d1a6c4148c369e'
+            '1155cde9c3b3f3745d39757e47600a78645979a1fdbbdbb6ecc6a6a3f2c264df'
+            '899920d9aa168a8223a420fb56b52c16600c85ee1618b381f486720eb46b8e84'
+            '9e66c59887c4a634b34672962ad8187a3f6fdf310719ac8e91fbdf55b40db9d1'
+            'b119a2158d6d02732e1902d16f19c2e9c319389972ae8ffb22f6dd80b9efd62d'
             'f643831842e9c2c15f1ecb3ec96022f6f32af2a88e0e4501e56b20d86905995d'
-            'faf18878d93b71c9b3034b2e0be7e75d0a105734726872f1353e2afa8664e7aa'
-            '8e1a66af0edb1207a27af05c8e4250bc3b02a6dc39bae2c36a313b48fae3c4e6'
-            '81a88720512c311515107607447d2c8faa8a7158ebc28232a8d19fe27b905836'
-            '15c0e054789e54794f1f7a13e7da844e392e42327f57d960665409503647ec28'
-            'ceea443a47860778d096a4b1c644467f61f3afb135b20c9a8019242d1fc6c175'
-            '70db4d3c3c05926d2460b6cb671f0f39819fa1a2e3af7a17fb58df00156872e1'
-            '389872855584a1a912f3833c99a318bd924bee25ed806f5769c0b1c7feda1cf9'
-            '10ec6c64fa8ce81f61990de03ed1dcdae8d2ddd116a394fc8ff87f6dca2e0173'
-            '043568001a1717cb4e16e318001e2f707a6814b4ca223ce4bfeaccea4a565f73'
-            'a56d05880a32025f9a1fc93e2b56086ff0faf7555a98d1ff80c3b641c0d65d22'
-            'ef7032bc5051152e423abdb71fb26f4a33001f2167989387935af854e85e4942'
-            '2ac3a4f2b6ffafb11514f7595fd9283df2cfe201abceb527baaf210bdceeafb7'
-            '15c3a30def78c79ef89c611ae367e3fc2ad6d42db14275ddc897580aa0b06886'
-            '3505bf06fb1ea3ef587195e01eecac8aaef803713b261066f00727dfe078b673'
-            '64402d30c686d84be75800ee295c7fe37523d741403ee0cb0df5058aeab6dfa5'
-            'a6334a512fd4060d534a23e9c92b9b548117832fb551ec2a4a5727e3d3fcebdd'
-            'fb1d4be936d2def610a30f7a3eaeb06ef93d7734b26190ab28adee5bec81d549'
-            '0e79afe46fa6f2b6f225ae06c9e849722b598946af60a62b071260458f693077'
-            '2d5a5a8096854c8a568d909a93894d715b35cf16e2ec97660d24f18492d567bc'
-            '0131e1e874052db20704cb20a96cd3c8bc2e6486bdf6ef1ffcff8a114ea8547e'
-            '9f927224573db9e029c233f2684314dc25c65495902400f862b583c4af460893'
-            '2eba5c2ae3cfa777b19d2b4db32ddee5509516f4875ce09e3ee59773e81868b2'
-            '517001708adbde15fa95ed85f38b09d45bcfe3674081d0d3897356342b202145'
-            '3cd8deca90db93a1087d551e37954bd7698f56e9b9b4845faa62142639327f09'
-            '307aed5ea8525b41eccc15afef839519930b6d4231c1d31118ae9cceba81df95'
-            '0a37c3bd9542f85b3a5e946b2c5928c3334faafa374b50bc9016a26c192a7f33'
-            '66219146773e44967c1971cd6631f8f76ed2ed13c527a610c398b506d2256fa7')
+            '95f96d5dc0fe3e7e4bac947f39a950e4b85d48d0c868cb552be2e39d7dd0fdb2'
+            '71c2d070f3f434a0e54b723268a73fdbf81a7abe24b55f292a37a26cc46bdef8'
+            '107460105cdb3f1d34e5add1282fd527c340f0e9df7373b3d3dd70f1733774e4'
+            'f66d893d370e36f04657e03fb3aadcae6861bf7848b7e6fe86b4fa26456847e9'
+            '2634032f94a13891389d9ca3462d35fb70d658aae03e0f95ea454e7d9d210b4f'
+            'd172428e0d4356c50cb663f77ddb95e73b04704e2d4fcc7ad9e1f82c01a8c313'
+            '7fe090490f2b5771c78bf633f15a5e7f897d0c3fff9a0d4b551f148de7102035'
+            '623296db23b953f4778ade05652c935dff5e4b30dc46cf07fbcc147c3615ed7c'
+            '58423347b070338e944518a5679b106148ed3802953beab526b6492a94342522'
+            '69a46dae793fd60335746a26bfc51105ff4295d0812417fd73e958bafbb2acf8'
+            '3a46d9d83837d0ab49db7cc2229faee8ae75af68ec1062f55c21b0c16da47131'
+            '0db36c70c817ae8a6479502247e2fd50af5cbfdfb8f72225ce31ab63d48b5b55'
+            '405c1392ddc5623c314d38bc2eead1fccb33e9c4abf757b221d596cfb8610d0f'
+            '399acaccbcd428fc2728fa4fefe4609e8a4818539afd7c324f70db25273d524c'
+            'abcdf15dcf814309160bdd6376139f4e0b9db88254a9fbd41b9b75ed49729716'
+            '362d63fcdcd3aca22ebb5b03d927f0be0fc85cbd39e213180a88e0a61401e900'
+            '5feb0769b95901d730c226c60a31687f98325fa83dd4550a9c43af0f314fea8a'
+            '138110a98a56903eb3730ef3bba73c87fdf62348cb641a6f1f5b62cb8bd0d388'
+            'ac27efa31feadcb05ee2e5f5350f62e2b1fed6d3933e988c1dbd83bcba7a4a6a'
+            '10f7542947372442a681c6119716b42639e4fd00b80f648f2f5c4aa9508f3f8b'
+            '19316b6ccf12912220311e6f9b1b2356e8a94025da91c7108afe3bba9c91cd0d'
+            '057cc123a859ba2a7a7c003879e87d87bdf7b8366f5403ff979a1a95ac78b305'
+            'a3cd9131e2ae447ae0fd0b6edc54c500753a496ab2ab349a447127e8e42ca2dc'
+            '79a41fe36f515a67aefb518e4717e17914e98ade1fbc5176a8688de84e96aebf'
+            '6b1d03e9912ccc05275e60e2130ebc3a60ef054f08f5619ffec4637de27ed072'
+            '8f3c3a4e266321286b744b9c803c08108da282d9e5719dc270aaa86930c91889'
+            'cf094a0e160c327bd54aa3d58712e8cf01b0ae142b5a697cd5b0c106c5e58581'
+            'bb4a837e9241f7e4b3fe63b364496675cf1f7c06c4c2907440bce9d300848718'
+            'f1b6425c636f0ba1a7796d2b8acda6c87f23bf4bcec505b9062ad0a239b43b03'
+            'a11dc4586e9533030f0e8f4c9ca745e5f95a0ba3d38754f564627b0f757e4a98'
+            '82b8df512a5ab5b00dc5d3b4c8407d74137f369eede8cffdcbff61ea62fb51c0'
+            'b84a5449b066c32672455d80b82382789b118014b1e341bbb9b6e9230b8d5979'
+            '2eddc5b8aa6be2d07f8721c172b6c584cec2c0f78615ffdcd3f18178a299ea18'
+            '85dd94a7fd1361c982802f0a1ce30115c96dc829c600a39ccccd1889e8a0e259'
+            '38e4812481335e1a3ce2cb2c843ead94267fc0ecb7f7797408d4b36d9de3d1d9'
+            'd4b0316fc3b73b3c6ee545f27a64fb21baee315732aacddde08529c530c0516d'
+            '35f4dfc8362356a2f51bae3fc0ae5802a278302ea89a36828769d48b12ed195b'
+            '0c345b144f36b92b216d6d277875326faf2e4187ac62101d3bd9aba9ed053998'
+            'f4f5359b35741b703cbd22dc73438c181b8541e30b3f7614bd272f7cd2c59049')

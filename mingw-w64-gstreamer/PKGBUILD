@@ -3,17 +3,14 @@
 _realname=gstreamer
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.8.3
+pkgver=1.14.0
 pkgrel=1
 pkgdesc="GStreamer Multimedia Framework (mingw-w64)"
 arch=('any')
 url="https://gstreamer.freedesktop.org/"
 license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "intltool"
-             "gtk-doc"
+makedepends=("${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+             "${MINGW_PACKAGE_PREFIX}-gtk-doc"
              "flex"
              "bison")
 depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
@@ -23,14 +20,13 @@ depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
          "${MINGW_PACKAGE_PREFIX}-gmp"
          "${MINGW_PACKAGE_PREFIX}-gsl")
 options=(!libtool strip staticlibs)
-source=("${url}/src/gstreamer/gstreamer-${pkgver}.tar.xz"
-        "0005-gstreamer-strsignal-prototype-does-not-match-method-.patch")
-sha256sums=('66b37762d4fdcd63bce5a2bec57e055f92420e95037361609900278c0db7c53f'
-            '0d32be09e6adf6931969e5934032eeab1021bbe2b408ac9e218a7781571c0a23')
+conflicts=("${MINGW_PACKAGE_PREFIX}-gst-plugins-bad<1.14.0")
+source=("${url}/src/gstreamer/gstreamer-${pkgver}.tar.xz")
+sha256sums=('fc361367f0d4b780a868a8833f9f30b9c9f4ac9faea4e6b251db8b4b0398466e')
 
 prepare() {
   cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i "${srcdir}"/0005-gstreamer-strsignal-prototype-does-not-match-method-.patch
+
   #autoreconf -fi
 }
 
@@ -58,17 +54,16 @@ build() {
     --enable-introspection \
     --disable-poisoning \
     --disable-gtk-doc \
-    --enable-docbook \
     --enable-check \
     --disable-silent-rules \
     "${extra_config[@]}"
-
   make
 }
 
 package() {
   cd "${srcdir}/build-${MINGW_CHOST}"
   make -j1 DESTDIR="${pkgdir}" install
+
   find "${pkgdir}${MINGW_PREFIX}" -name '*.def' -o -name '*.exp' | xargs -rtl1 rm
   rm -f ${pkgdir}${MINGW_PREFIX}/lib/gstreamer*/*.a
 }

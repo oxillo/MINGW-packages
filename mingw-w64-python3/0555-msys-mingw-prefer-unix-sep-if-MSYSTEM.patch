@@ -1,6 +1,6 @@
-diff -Naur Python-3.5.2-orig/Include/pylifecycle.h Python-3.5.2/Include/pylifecycle.h
---- Python-3.5.2-orig/Include/pylifecycle.h	2016-06-26 00:38:35.000000000 +0300
-+++ Python-3.5.2/Include/pylifecycle.h	2016-07-12 14:21:58.192300700 +0300
+diff -Naur Python-3.6.5-orig/Include/pylifecycle.h Python-3.6.5/Include/pylifecycle.h
+--- Python-3.6.5-orig/Include/pylifecycle.h	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Include/pylifecycle.h	2018-04-16 09:54:06.206663500 +0300
 @@ -7,6 +7,12 @@
  extern "C" {
  #endif
@@ -14,14 +14,24 @@ diff -Naur Python-3.5.2-orig/Include/pylifecycle.h Python-3.5.2/Include/pylifecy
  PyAPI_FUNC(void) Py_SetProgramName(wchar_t *);
  PyAPI_FUNC(wchar_t *) Py_GetProgramName(void);
  
-diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
---- Python-3.5.2-orig/Lib/ntpath.py	2016-06-26 00:38:36.000000000 +0300
-+++ Python-3.5.2/Lib/ntpath.py	2016-07-12 14:21:58.198800700 +0300
-@@ -24,9 +24,15 @@
+diff -Naur Python-3.6.5-orig/Lib/ntpath.py Python-3.6.5/Lib/ntpath.py
+--- Python-3.6.5-orig/Lib/ntpath.py	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Lib/ntpath.py	2018-04-16 09:54:06.222263500 +0300
+@@ -11,9 +11,7 @@
  curdir = '.'
  pardir = '..'
  extsep = '.'
 -sep = '\\'
+ pathsep = ';'
+-altsep = '/'
+ defpath = '.;C:\\bin'
+ devnull = 'nul'
+ 
+@@ -28,6 +26,15 @@
+ import stat
+ import genericpath
+ from genericpath import *
++
 +if sys.platform == "win32" and "MSYSTEM" in os.environ:
 +    sep = '/'
 +    altsep = '\\'
@@ -30,12 +40,10 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
 +    altsep = '/'
 +bsep = str.encode(sep)
 +baltsep = str.encode(altsep)
- pathsep = ';'
--altsep = '/'
- defpath = '.;C:\\bin'
- if 'ce' in sys.builtin_module_names:
-     defpath = '\\Windows'
-@@ -34,9 +40,27 @@
+ 
+ __all__ = ["normcase","isabs","join","splitdrive","split","splitext",
+            "basename","dirname","commonprefix","getsize","getmtime",
+@@ -33,9 +39,27 @@
  
  def _get_bothseps(path):
      if isinstance(path, bytes):
@@ -66,7 +74,7 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
  # Normalize the case of a pathname and map slashes to backslashes.
  # Other normalizations (such as optimizing '../' away) are not done
 @@ -48,9 +72,9 @@
-     Makes all characters lowercase and all slashes into backslashes."""
+     s = os.fspath(s)
      try:
          if isinstance(s, bytes):
 -            return s.replace(b'/', b'\\').lower()
@@ -77,10 +85,10 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
      except (TypeError, AttributeError):
          if not isinstance(s, (bytes, str)):
              raise TypeError("normcase() argument must be str or bytes, "
-@@ -72,14 +96,9 @@
- 
+@@ -74,14 +98,9 @@
  # Join two (or more) paths.
  def join(path, *paths):
+     path = os.fspath(path)
 -    if isinstance(path, bytes):
 -        sep = b'\\'
 -        seps = b'\\/'
@@ -95,9 +103,9 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
      try:
          if not paths:
              path[:0] + sep  #23780: Ensure compatible data type even if p is null.
-@@ -137,14 +156,9 @@
- 
+@@ -140,14 +159,9 @@
      """
+     p = os.fspath(p)
      if len(p) >= 2:
 -        if isinstance(p, bytes):
 -            sep = b'\\'
@@ -113,9 +121,9 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
          normp = p.replace(altsep, sep)
          if (normp[0:2] == sep*2) and (normp[2:3] != sep):
              # is a UNC path:
-@@ -219,9 +233,9 @@
- 
+@@ -223,9 +237,9 @@
  def splitext(p):
+     p = os.fspath(p)
      if isinstance(p, bytes):
 -        return genericpath._splitext(p, b'\\', b'/', b'.')
 +        return genericpath._splitext(p, bsep, baltsep, b'.')
@@ -125,10 +133,10 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
  splitext.__doc__ = genericpath._splitext.__doc__
  
  
-@@ -464,15 +478,13 @@
- 
+@@ -472,15 +486,13 @@
  def normpath(path):
      """Normalize path, eliminating double slashes, etc."""
+     path = os.fspath(path)
 +    sep = _get_sep(path)
 +    altsep = _get_altsep(path)
      if isinstance(path, bytes):
@@ -143,10 +151,10 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
          curdir = '.'
          pardir = '..'
          special_prefixes = ('\\\\.\\', '\\\\?\\')
-@@ -549,12 +561,11 @@
- 
+@@ -560,12 +572,11 @@
  def relpath(path, start=None):
      """Return a relative version of a path"""
+     path = os.fspath(path)
 +    sep = _get_sep(path)
      if isinstance(path, bytes):
 -        sep = b'\\'
@@ -157,12 +165,12 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
          curdir = '.'
          pardir = '..'
  
-@@ -607,13 +618,11 @@
-     if not paths:
+@@ -620,13 +631,11 @@
          raise ValueError('commonpath() arg is an empty sequence')
  
-+    sep = _get_sep(path)
-+    altsep = _get_altsep(path)
+     paths = tuple(map(os.fspath, paths))
++    sep = _get_sep(paths[0])
++    altsep = _get_altsep(paths[0])
      if isinstance(paths[0], bytes):
 -        sep = b'\\'
 -        altsep = b'/'
@@ -173,9 +181,9 @@ diff -Naur Python-3.5.2-orig/Lib/ntpath.py Python-3.5.2/Lib/ntpath.py
          curdir = '.'
  
      try:
-diff -Naur Python-3.5.2-orig/Modules/getpath.c Python-3.5.2/Modules/getpath.c
---- Python-3.5.2-orig/Modules/getpath.c	2016-06-26 00:38:38.000000000 +0300
-+++ Python-3.5.2/Modules/getpath.c	2016-07-12 14:21:58.209800700 +0300
+diff -Naur Python-3.6.5-orig/Modules/getpath.c Python-3.6.5/Modules/getpath.c
+--- Python-3.6.5-orig/Modules/getpath.c	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Modules/getpath.c	2018-04-16 09:54:06.238863600 +0300
 @@ -135,7 +135,7 @@
  reduce(wchar_t *dir)
  {
@@ -231,9 +239,9 @@ diff -Naur Python-3.5.2-orig/Modules/getpath.c Python-3.5.2/Modules/getpath.c
 @@ -461,7 +461,7 @@
      extern wchar_t *Py_GetProgramName(void);
  
-     static wchar_t delimiter[2] = {DELIM, '\0'};
--    static wchar_t separator[2] = {SEP, '\0'};
-+    wchar_t separator[2] = {Py_GetSepW(NULL), '\0'};
+     static const wchar_t delimiter[2] = {DELIM, '\0'};
+-    static const wchar_t separator[2] = {SEP, '\0'};
++    const wchar_t separator[2] = {Py_GetSepW(NULL), '\0'};
      char *_rtpypath = Py_GETENV("PYTHONPATH"); /* XXX use wide version on Windows */
      wchar_t *rtpypath = NULL;
      wchar_t *home = Py_GetPythonHome();
@@ -285,12 +293,12 @@ diff -Naur Python-3.5.2-orig/Modules/getpath.c Python-3.5.2/Modules/getpath.c
 -        if (defpath[0] != SEP) {
 +        if (defpath[0] != separator[0] && defpath[0] != '\0' && defpath[1] != L':') {
              wcscat(buf, prefix);
-             wcscat(buf, separator);
-         }
-diff -Naur Python-3.5.2-orig/Modules/posixmodule.c Python-3.5.2/Modules/posixmodule.c
---- Python-3.5.2-orig/Modules/posixmodule.c	2016-07-12 14:20:48.017800700 +0300
-+++ Python-3.5.2/Modules/posixmodule.c	2016-07-12 14:21:58.223300700 +0300
-@@ -3320,6 +3320,7 @@
+             if (prefixsz >= 2 && prefix[prefixsz - 2] != SEP &&
+                 defpath[0] != (delim ? DELIM : L'\0')) {  /* not empty */
+diff -Naur Python-3.6.5-orig/Modules/posixmodule.c Python-3.6.5/Modules/posixmodule.c
+--- Python-3.6.5-orig/Modules/posixmodule.c	2018-04-16 09:53:11.991429000 +0300
++++ Python-3.6.5/Modules/posixmodule.c	2018-04-16 09:54:06.238863600 +0300
+@@ -3231,6 +3231,7 @@
                  PyMem_RawFree(wbuf2);
              return PyErr_SetFromWindowsErr(0);
          }
@@ -298,37 +306,26 @@ diff -Naur Python-3.5.2-orig/Modules/posixmodule.c Python-3.5.2/Modules/posixmod
          resobj = PyUnicode_FromWideChar(wbuf2, len);
          if (wbuf2 != wbuf)
              PyMem_RawFree(wbuf2);
-@@ -3798,7 +3799,10 @@
-             result = GetFullPathNameW(path->wide, result, woutbufp, &wtemp);
-         }
-         if (result)
-+        {
-+            Py_NormalizeSepsW(woutbufp);
-             v = PyUnicode_FromWideChar(woutbufp, wcslen(woutbufp));
-+        }
-         else
-             v = win32_error_object("GetFullPathNameW", path->object);
-         if (woutbufp != woutbuf)
-@@ -3814,6 +3818,7 @@
-             win32_error_object("GetFullPathName", path->object);
-             return NULL;
-         }
-+        Py_NormalizeSepsA(outbuf);
-         return PyBytes_FromString(outbuf);
+@@ -3660,6 +3661,7 @@
+         result = GetFullPathNameW(path->wide, result, woutbufp, &wtemp);
      }
- }
-@@ -3875,6 +3880,7 @@
-     if(!CloseHandle(hFile))
-         return win32_error_object("CloseHandle", path);
+     if (result) {
++        Py_NormalizeSepsW(woutbufp);
+         v = PyUnicode_FromWideChar(woutbufp, wcslen(woutbufp));
+         if (path->narrow)
+             Py_SETREF(v, PyUnicode_EncodeFSDefault(v));
+@@ -3739,6 +3741,7 @@
+         target_path = tmp;
+     }
  
 +    Py_NormalizeSepsW(target_path);
-     target_path[result_length] = 0;
      result = PyUnicode_FromWideChar(target_path, result_length);
-     PyMem_Free(target_path);
-diff -Naur Python-3.5.2-orig/Python/pylifecycle.c Python-3.5.2/Python/pylifecycle.c
---- Python-3.5.2-orig/Python/pylifecycle.c	2016-06-26 00:38:38.000000000 +0300
-+++ Python-3.5.2/Python/pylifecycle.c	2016-07-12 14:21:58.247300700 +0300
-@@ -831,17 +831,123 @@
+ 
+ cleanup:
+diff -Naur Python-3.6.5-orig/Python/pylifecycle.c Python-3.6.5/Python/pylifecycle.c
+--- Python-3.6.5-orig/Python/pylifecycle.c	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Python/pylifecycle.c	2018-04-16 09:54:06.238863600 +0300
+@@ -884,17 +884,123 @@
      PyInterpreterState_Delete(interp);
  }
  
@@ -456,10 +453,10 @@ diff -Naur Python-3.5.2-orig/Python/pylifecycle.c Python-3.5.2/Python/pylifecycl
  }
  
  wchar_t *
-diff -Naur Python-3.5.2-orig/Python/sysmodule.c Python-3.5.2/Python/sysmodule.c
---- Python-3.5.2-orig/Python/sysmodule.c	2016-06-26 00:38:38.000000000 +0300
-+++ Python-3.5.2/Python/sysmodule.c	2016-07-12 14:21:58.262800700 +0300
-@@ -2071,7 +2071,7 @@
+diff -Naur Python-3.6.5-orig/Python/sysmodule.c Python-3.6.5/Python/sysmodule.c
+--- Python-3.6.5-orig/Python/sysmodule.c	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Python/sysmodule.c	2018-04-16 09:54:06.238863600 +0300
+@@ -2240,7 +2240,7 @@
              argv0 = fullpath;
          }
  #endif
@@ -468,10 +465,10 @@ diff -Naur Python-3.5.2-orig/Python/sysmodule.c Python-3.5.2/Python/sysmodule.c
      }
      if (p != NULL) {
          n = p + 1 - argv0;
-diff -Naur Python-3.5.2-orig/Python/traceback.c Python-3.5.2/Python/traceback.c
---- Python-3.5.2-orig/Python/traceback.c	2016-06-26 00:38:38.000000000 +0300
-+++ Python-3.5.2/Python/traceback.c	2016-07-12 14:21:58.278300700 +0300
-@@ -199,7 +199,7 @@
+diff -Naur Python-3.6.5-orig/Python/traceback.c Python-3.6.5/Python/traceback.c
+--- Python-3.6.5-orig/Python/traceback.c	2018-03-28 12:19:31.000000000 +0300
++++ Python-3.6.5/Python/traceback.c	2018-04-16 09:54:06.254463700 +0300
+@@ -205,7 +205,7 @@
      filepath = PyBytes_AS_STRING(filebytes);
  
      /* Search tail of filename in sys.path before giving up */

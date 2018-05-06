@@ -3,11 +3,11 @@
 _realname=cppcheck
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.76.1
+pkgver=1.83
 pkgrel=1
 pkgdesc="static analysis of C/C++ code (mingw-w64)"
 arch=('any')
-url="http://cppcheck.sourceforge.net/"
+url="https://cppcheck.sourceforge.io/"
 license=('GPL3')
 depends=()
 makedepends=("${MINGW_PACKAGE_PREFIX}-docbook-xsl"
@@ -17,7 +17,7 @@ optdepends=("${MINGW_PACKAGE_PREFIX}-qt5: cppcheck-gui"
 source=(${_realname}-${pkgver}.tar.gz::"https://github.com/danmar/cppcheck/archive/${pkgver}.tar.gz"
         '0010-change-language-files-path.patch'
         '0020-change-cfg-path.patch')
-sha256sums=('5f3e6e276781cd36631baf91a2904b6433894a108ba41389050541331e57ec22'
+sha256sums=('7d3656762beee8087e234a796c900c84b004ac241301106b6a2c01ef2beff095'
             'a15a73396a2fa346d29df52c3143b46618454d0bc0f12f0ad891d5a4a856cb56'
             '3d54eb5abb99f88846e0d2a1e21793904efbe7179464631ca05985d03642d134')
 
@@ -29,44 +29,59 @@ prepare() {
 
 build() {
   cd "${srcdir}/${_realname}-${pkgver}"
-
+  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
+  cp -r "${srcdir}/${_realname}-${pkgver}" "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  
   LANG='en_US.UTF-8' make \
+    PREFIX=${MINGW_PREFIX} \
+    CXX=${MINGW_PREFIX}/bin/g++ \
+    LD=${MINGW_PREFIX}/bin/ld \
     SRCDIR=build \
     CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg \
     HAVE_RULES=yes \
     LDFLAGS=-lshlwapi RDYNAMIC=
 
   make man \
-    DB2MAN=${MINGW_PREFIX}/share/xml/docbook/xsl-stylesheets-1.79.1/manpages/docbook.xsl \
+    DB2MAN=${MINGW_PREFIX}/share/xml/docbook/xsl-stylesheets-1.79.2/manpages/docbook.xsl \
     CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg
 
   cd gui
   lrelease gui.pro
-  qmake HAVE_RULES=yes
+  ${MINGW_PREFIX}/bin/qmake HAVE_RULES=yes HAVE_QCHART=yes CONFIG+=release
   make \
+    CXX=${MINGW_PREFIX}/bin/g++ \
+    LD=${MINGW_PREFIX}/bin/ld \
+    PREFIX=${MINGW_PREFIX} \
     SRCDIR=build \
     CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg \
-    HAVE_RULES=yes
+    HAVE_RULES=yes \
+    HAVE_QCHART=yes
 }
 
 check() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  # LANG='en_US.UTF-8' make test \
-  #   SRCDIR=build \
-  #   CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg \
-  #   HAVE_RULES=yes \
-  #   LDFLAGS=-lshlwapi RDYNAMIC=
+  cd "${srcdir}"/build-${CARCH}
+   LANG='en_US.UTF-8' make test \
+     SRCDIR=build \
+     CXX=${MINGW_PREFIX}/bin/g++ \
+     LD=${MINGW_PREFIX}/bin/ld \
+     PREFIX="${MINGW_PREFIX}" \
+     CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg \
+     HAVE_RULES=yes \
+     HAVE_QCHART=yes \
+     LDFLAGS=-lshlwapi RDYNAMIC=
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${srcdir}"/build-${CARCH}
 
   LANG='en_US.UTF-8' make install \
     DESTDIR="${pkgdir}" \
+    CXX=${MINGW_PREFIX}/bin/g++ \
+    LD=${MINGW_PREFIX}/bin/ld \
     PREFIX="${MINGW_PREFIX}" \
     SRCDIR=build \
     CFGDIR=${MINGW_PREFIX}/share/cppcheck/cfg \
+    HAVE_QCHART=yes \
     HAVE_RULES=yes
 
   # man and COPYING

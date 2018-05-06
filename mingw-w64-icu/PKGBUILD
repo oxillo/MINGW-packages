@@ -1,10 +1,15 @@
 # Maintainer: Alexey Pavlov <Alexpux@gmail.com>
 # Contributor: Ray Donnelly <mingw.android@gmail.com>
 
+# Note: I would like to update to 59.1 but I found
+# putil.cpp: In function 'const char* uprv_getDefaultLocaleID_59d()':
+# putil.cpp:1733:86: error: 'GetUserDefaultLocaleName' was not declared in this sc           ope
+# int length = GetUserDefaultLocaleName(windowsLocale, UPRV_LENGTHOF(windowsL           ocale));
+
 _realname=icu
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}" "${MINGW_PACKAGE_PREFIX}-${_realname}-debug-libs")
-pkgver=57.1
+pkgver=61.1
 pkgrel=1
 arch=('any')
 pkgdesc="International Components for Unicode library (mingw-w64)"
@@ -27,33 +32,56 @@ source=("http://download.icu-project.org/files/icu4c/${pkgver}/icu4c-${pkgver//.
         0014-mingwize-pkgdata.mingw.patch
         0015-debug.mingw.patch
         0016-icu-pkgconfig.patch
-        0017-icu-config-versioning.patch)
-sha256sums=('ff8c67cb65949b1e7808f2359f2b80f722697048e90e7cfc382ec1fe229e9581'
-            '6c7108c066ce83ff9fbb191ef090ef8db51b2bc1194b72570071dbc0a155a935'
-            'add3a6805fa147384e517e78e7a72370a2b0cd51defefaa00038d40fb4ee9e25'
-            '2038881890542797fe1fe9a384cf2bb6c5504b18fb26eab1368f5cb0e6f7f7af'
-            'b30a05dbd9e8c70f1c3f6e119fa386925200a31cc9cab327b7affd6e07572842'
-            '2adfd968379888d919f0dd4e0379cef7b744ba56d98216b82372ed4cd00a2592'
-            'b05d8f1700904454329402178366ce2dd254d9afa76dc8239bfc126d7ff42800'
-            'be245f2eef854859c656b797bedd9bec5d79ae41346b7b945d3c1b84aa281c61'
-            'ac63e11e11fb7c849fbeff0a0008a49942a1e19ffe29385aa70248614c7ffd4d'
-            'd1745b9d69729cb318cc329847160b50129621f98774a640726a7affd4b2bfd2'
-            'f1d135ccd21ec1ef79e3dd2489ec48314752658433470e597d98551993aa1108'
-            'fd022a7e2ae561e3158e8bb2202b675413929ab524704a1d11bb71c69a2b6722')
+        0017-icu-config-versioning.patch
+        0020-workaround-missing-locale.patch
+        0021-mingw-static-libraries-without-s.patch)
+sha256sums=('d007f89ae8a2543a53525c74359b65b36412fa84b3349f1400be6dcf409fafef'
+            '0b6f5ea91bb579f03cdfa2737719411e3207169f5921ffeea8564cf24fa46715'
+            'a32b3fae6a59599c942e5f8bc2d29416aaedca0ce2832c857ecf99eb7529cee1'
+            'f437f25a62420856ed234d2b33672b860ae00106cb5d4ccc682f5ff15176aeaf'
+            'c84fda5b32edcbf062d629bbf04c47e73e7b9620f4dae752c1c0c25f49124ca8'
+            '1cf7fd08bad22f39441213d54f0659a3046e163729aa4cd6ff393602ec22c285'
+            '4f4787caeccf70607cf0cbde0c005f05f5c6de1543265a927839122405b4054f'
+            'e7ecdafe85e18a4a4b5f29bbfde38776521a848e5b65089a2379b90e59f1592d'
+            '564e0171b9c183dfc45a0022ee94220de715d17351b3d2a8aa7fa7ff4c20a8cd'
+            '0181f9ff8b7dd0a423869d8772da0a4feea64188347eb0dee7eb059aea92131c'
+            '87ebe8962f8c387714f2a697a664a0c49aed2331b988548069d0c211abc36e05'
+            '5247102df5604671c33a6e7226e5135a6b48049550861b892f0686dcefec4329'
+            'cf4c5925da545f864277abde2741009816ec77ae9083a6970f5bde5162a93feb'
+            'd8612f40b1731d9a94290afcf80c896184a2f15b8ae8f23b3643c64f6cabfa2f')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  msg2 "Applying $1"
+  patch -Nbp1 -i "${srcdir}"/$1
+}
+
+del_file_exists() {
+  for _fname in "$@"
+  do
+    if [ -f $_fname ]; then
+      rm -rf $_fname
+    fi
+  done
+}
+# =========================================== #
+
 prepare() {
   cd "${srcdir}/icu"
 
-  patch -p1 -i "$srcdir"/0004-move-to-bin.mingw.patch
-  patch -p1 -i "$srcdir"/0007-actually-move-to-bin.mingw.patch
-  patch -p1 -i "$srcdir"/0008-data-install-dir.mingw.patch
-  patch -p1 -i "$srcdir"/0009-fix-bindir-in-config.mingw.patch
-  patch -p1 -i "$srcdir"/0010-msys-rules-for-makefiles.mingw.patch
-  patch -p1 -i "$srcdir"/0011-sbin-dir.mingw.patch
-  patch -p1 -i "$srcdir"/0012-libprefix.mingw.patch
-  patch -p1 -i "$srcdir"/0014-mingwize-pkgdata.mingw.patch
-  patch -p1 -i "$srcdir"/0015-debug.mingw.patch
-  patch -p1 -i "$srcdir"/0016-icu-pkgconfig.patch
-  patch -p1 -i "$srcdir"/0017-icu-config-versioning.patch
+  apply_patch_with_msg 0004-move-to-bin.mingw.patch
+  apply_patch_with_msg 0007-actually-move-to-bin.mingw.patch
+  apply_patch_with_msg 0008-data-install-dir.mingw.patch
+  apply_patch_with_msg 0009-fix-bindir-in-config.mingw.patch
+  apply_patch_with_msg 0010-msys-rules-for-makefiles.mingw.patch
+  apply_patch_with_msg 0011-sbin-dir.mingw.patch
+  apply_patch_with_msg 0012-libprefix.mingw.patch
+  apply_patch_with_msg 0014-mingwize-pkgdata.mingw.patch
+  apply_patch_with_msg 0015-debug.mingw.patch
+  apply_patch_with_msg 0016-icu-pkgconfig.patch
+  apply_patch_with_msg 0017-icu-config-versioning.patch
+  apply_patch_with_msg 0020-workaround-missing-locale.patch
+  apply_patch_with_msg 0021-mingw-static-libraries-without-s.patch
 
   cd source
   autoreconf -vfi
@@ -61,6 +89,8 @@ prepare() {
 
 build() {
   local -a extra_config
+  CXXFLAGS+=" -DU_USE_STRTOD_L=0" # breaks on Windows XP
+  #CXXFLAGS+=" -D_WIN32_WINNT=0x0601"
   cd "${srcdir}/icu/"
   # For ICU we ignore the options for debug above and always
   # build both debug and release (and static and shared).
@@ -69,7 +99,7 @@ build() {
   # (though only for the static variant, oddly, see:
   #   qtbase/config.tests/unix/icu/icu.pro
   for _variant in debug release; do
-    [ -d build-${CARCH}-${_variant} ] && rm -rf build-${CARCH}-${_variant}
+    [[ -d build-${CARCH}-${_variant} ]] && rm -rf build-${CARCH}-${_variant}
     if [ "${_variant}" = "debug" ]; then
       extra_config=( --enable-debug )
       extra_config+=( --with-library-suffix=d )
