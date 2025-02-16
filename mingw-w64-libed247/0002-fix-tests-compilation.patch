@@ -1,0 +1,59 @@
+From c3721ec7070354e3ea28fab526c756dcd99f3161 Mon Sep 17 00:00:00 2001
+From: Olivier XILLO <oxdev@mailo.com>
+Date: Sun, 16 Feb 2025 13:20:03 +0100
+Subject: [PATCH] fix: tests compilation
+
+---
+ tests/libtests/tests_tools.h                 | 1 +
+ tests/unit_sockets/src/unit_sockets_main.cpp | 9 +++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/tests/libtests/tests_tools.h b/tests/libtests/tests_tools.h
+index 1d4664b..05a9388 100644
+--- a/tests/libtests/tests_tools.h
++++ b/tests/libtests/tests_tools.h
+@@ -5,6 +5,7 @@
+ #include "gtest/gtest.h"
+ #include "ed247_logs.h"
+ #include "time_tools.h"
++#include <iomanip>
+ 
+ #ifdef __linux__
+ #include <arpa/inet.h>
+diff --git a/tests/unit_sockets/src/unit_sockets_main.cpp b/tests/unit_sockets/src/unit_sockets_main.cpp
+index 853d2a6..2bb3c4a 100644
+--- a/tests/unit_sockets/src/unit_sockets_main.cpp
++++ b/tests/unit_sockets/src/unit_sockets_main.cpp
+@@ -33,6 +33,11 @@ class TEST_CLASS_NAME(SocketContext, TEST_EMITTER_2_1_1_RECEPTION_2_1_1);
+ #include "single_actor_test.h"
+ #include "ed247_context.h"
+ 
++std::string to_string(const ed247::xml::UdpSocket& sc)
++{
++  return sc._src_ip_address + ":" + std::to_string(sc._src_ip_port) + "=>" + sc._dst_ip_address + ":" + std::to_string(sc._dst_ip_port);
++}
++
+ 
+ class SocketContext : public ::testing::TestWithParam<ed247::xml::UdpSocket> {};
+ 
+@@ -51,7 +56,7 @@ TEST_P(SocketContext, TEST_EMITTER_1_1_1_RECEPTION_1_1_1)
+     // Socket
+     ed247::xml::UdpSocket sp_socket_conf = GetParam();
+ 
+-    RecordProperty("description", strize() << "Send a single frame from a single channel with one socket to another channel with another socket. [" << sp_socket_conf << "]");
++    RecordProperty("description", strize() << "Send a single frame from a single channel with one socket to another channel with another socket. [" << to_string(sp_socket_conf) << "]");
+ 
+     // Stream (Emitter)
+     ed247::xml::A429Stream* sp_stream_emitter_conf = new ed247::xml::A429Stream();
+@@ -161,7 +166,7 @@ TEST_P(SocketContext, TEST_EMITTER_2_1_1_RECEPTION_2_1_1)
+     // Socket
+     ed247::xml::UdpSocket sp_socket_conf = GetParam();
+ 
+-    RecordProperty("description", strize() << "Send two frames from a single channel with one socket to another channel with another socket. [" << sp_socket_conf << "]");
++    RecordProperty("description", strize() << "Send two frames from a single channel with one socket to another channel with another socket. [" << to_string(sp_socket_conf) << "]");
+ 
+     // Stream (Emitter)
+     ed247::xml::A429Stream* sp_stream_emitter_conf = new ed247::xml::A429Stream();
+-- 
+2.48.1
+
