@@ -53,6 +53,7 @@ build() {
     -B "build-${MSYSTEM}"
 
   ${MINGW_PREFIX}/bin/cmake.exe --build "build-${MSYSTEM}" --target ed247
+  ${MINGW_PREFIX}/bin/cmake.exe --build "build-${MSYSTEM}" --target ed247_static
   ${MINGW_PREFIX}/bin/cmake.exe --build "build-${MSYSTEM}" --target utils
 }
 
