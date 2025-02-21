@@ -1,0 +1,26 @@
+From aa1e66f83d04fe24c7e64f07259cc1c3471fd576 Mon Sep 17 00:00:00 2001
+From: Olivier XILLO <oxdev@mailo.com>
+Date: Sun, 16 Feb 2025 19:56:34 +0100
+Subject: [PATCH] fix: tests
+
+---
+ tests/func_load_all/src/func_load_all_main.cpp | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/tests/func_load_all/src/func_load_all_main.cpp b/tests/func_load_all/src/func_load_all_main.cpp
+index f08369c..32cfbc2 100644
+--- a/tests/func_load_all/src/func_load_all_main.cpp
++++ b/tests/func_load_all/src/func_load_all_main.cpp
+@@ -157,9 +157,6 @@ INSTANTIATE_TEST_CASE_P(func_load_all, LoadContext,
+ 
+ int main(int argc, char **argv)
+ {
+-    // Parsing argument manage by Google Test framework
+-    ::testing::InitGoogleTest(&argc, argv);
+-
+     if(argc > 1)
+         config_path = argv[1];
+     else
+-- 
+2.48.1
+
