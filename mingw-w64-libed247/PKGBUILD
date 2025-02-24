@@ -22,11 +22,13 @@ source=(${_realname}::"git+${url}#commit=${_commit}"
         "0001-fix-include-limits.patch"
         "0002-fix-tests-compilation.patch"
         "0003-fix-tests.patch"
+        "0004-fix-CMAKE-install.patch"
         )
 sha256sums=('0ad9fa0fd011ae78316e1b493027ba2153870495dfb4a8a9c38fb43c7b79bf2c'
             'db0695963610a0d5be1b08c732c5e66662ee21ac08fbbff84c8ad9203c09c56c'
             'f99acc9203db32bffe91bc4dce1209afa50c428762409c6912b1065bd3fa3ed4'
-            '68b84ea438c34a878920e5854ffca4d46a172f450ff27996c820c01f60f5860a')
+            '68b84ea438c34a878920e5854ffca4d46a172f450ff27996c820c01f60f5860a'
+            '71da8356cf9fdbb731c879a0aee8cc1a6c8c4ba15205208930442151db3700cd')
 
 prepare() {
   cd "${srcdir}"/${_realname}
@@ -34,6 +36,7 @@ prepare() {
   git apply "${srcdir}/0001-fix-include-limits.patch"
   git apply "${srcdir}/0002-fix-tests-compilation.patch"
   git apply "${srcdir}/0003-fix-tests.patch"
+  git apply "${srcdir}/0004-fix-CMAKE-install.patch"
 }
 
 build() {
@@ -65,6 +68,19 @@ check() {
 package() {
   # Generate documentation
   ${MINGW_PREFIX}/bin/cmake.exe --build "build-${MSYSTEM}" --target doc
+  # Generate pkgconfig file
+  mkdir -p ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
+  pcfile=${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/libed247.pc
+  echo "prefix=${MINGW_PREFIX}
+exec_prefix=\${prefix}
+includedir=\${prefix}/include
+libdir=\${exec_prefix}/lib
+
+Name: ${_realname}
+Description: ${pkgdesc}
+Version: ${pkgver}.${pkgrel}
+Cflags: -I\${includedir}
+Libs: -L\${libdir} -led247" > ${pcfile}
   # Install library and utilities
   DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install "build-${MSYSTEM}"
   # install licenses
