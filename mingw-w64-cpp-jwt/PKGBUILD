@@ -16,7 +16,7 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              'git')
 _commit='b7f1717'
 source=("${_realname}::git+https://github.com/arun11299/${_realname}.git#commit=${_commit}")
-sha256sums=('f6db19edef6d2f602d7a929e83c074a820e835fd83cc52a18100d9c88b593061')
+sha256sums=('SKIP')
 
 pkgver() {
   cd "${srcdir}/${_realname}"
