@@ -1,0 +1,63 @@
+# Maintainer: Olivier XILLO <oxdev_at_mailo.com>
+
+_realname=libuiohook
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=r626.2a2d40f
+pkgrel=1
+pkgdesc='A multi-platform C library to provide global keyboard and mouse hooks from userland'
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64')
+license=('spdx:GPL-3.0-or-later', "spdx:LGPL-3.0-or-later")
+url="https://github.com/kwhat/libuiohook"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             'git')
+_commit='2a2d40f'
+source=("${_realname}::git+https://github.com/kwhat/${_realname}.git#commit=${_commit}")
+sha256sums=('e26bd62544411de166d3c80db0e37a91d663088887d9af5a17e95111316a940f')
+
+pkgver() {
+  cd "${srcdir}/${_realname}"
+  printf "r%s.%s" "$(git rev-list --count "${_commit}")" "$(git rev-parse --short "${_commit}")"
+  #git describe --tags "${_commit}" | sed 's/^v//g'
+  #git describe --long "${_commit}" | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//g'
+}
+
+prepare() {
+  cd "${srcdir}/${_realname}"
+  #sed -i "s/-Werror//g" cmake/unifex_env.cmake
+}
+
+build(){
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=ON \
+    -DENABLE_TEST=OFF \
+    -S "${_realname}" \
+    -B "build-${MSYSTEM}"
+    
+  cmake --build "build-${MSYSTEM}"
+}
+
+#check() {
+  #cmake --build "build-${MSYSTEM}" --target test
+#}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  install -Dm644 "${srcdir}/${_realname}/COPYING.LESSER.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LESSER.md"
+  install -Dm644 "${srcdir}/${_realname}/COPYING.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.md"
+}
