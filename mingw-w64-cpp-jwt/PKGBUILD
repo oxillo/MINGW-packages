@@ -12,6 +12,7 @@ license=('spdx:MIT')
 url="https://github.com/arun11299/cpp-jwt"
 makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-gtest"
              "${MINGW_PACKAGE_PREFIX}-ninja"
              'git')
 _commit='b7f1717'
