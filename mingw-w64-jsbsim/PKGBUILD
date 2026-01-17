@@ -1,0 +1,73 @@
+# Maintainer: Olivier XILLO <oxdev_at_mailo.com>
+
+_realname=jsbsim
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=master
+pkgrel=1
+pkgdesc="general purpose object-oriented Flight Dynamics Model (FDM)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/JSBSim-Team/jsbsim"
+license=('spdx:LGPL-2.1-only')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-expat"
+             "${MINGW_PACKAGE_PREFIX}-doxygen"
+             "${MINGW_PACKAGE_PREFIX}-python"
+             "${MINGW_PACKAGE_PREFIX}-python-scipy"
+             "${MINGW_PACKAGE_PREFIX}-cython"
+             'git')
+_commit='5988bb4'
+source=("${_realname}"::"git+https://github.com/JSBSim-Team/jsbsim.git#commit=${_commit}"
+        001-jsbsim-python-fpectl.patch)
+sha256sums=('SKIP'
+            '589ad2525343fa82d05a2a4fc8c0a2ab18ab90ee11c48f968c556dc2fe2a3329')
+
+
+pkgver() {
+  cd "${_realname}"
+
+  #git describe --tags "${_commit}" | sed 's/^v//g'
+  printf "master"
+}
+
+prepare() {
+  cd "${_realname}"
+
+  patch -Np1 -i "${srcdir}/001-jsbsim-python-fpectl.patch"
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_{SHARED,STATIC}_LIBS=ON \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DSYSTEM_EXPAT=ON \
+      -S "${_realname}" \
+      -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+check() {
+  cmake --build "build-${MSYSTEM}" --target test
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  install -Dm644 "${srcdir}/${_realname}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+}
+

@@ -1,0 +1,29 @@
+--- jsbsim_orig/python/fpectl/fpectlmodule.cpp	2026-01-04 14:56:36.983907300 +0100
++++ jsbsim/python/fpectl/fpectlmodule.cpp	2026-01-04 12:59:37.762882000 +0100
+@@ -77,7 +77,7 @@
+ #include <signal.h>
+ #include <iostream>
+ 
+-#if defined(_MSC_VER)
++#if (defined(_MSC_VER) || defined(__MINGW32__))
+ #  include <float.h>
+ static unsigned int fp_flags = 0;
+ #elif (defined(__GNUC__) || defined(__clang__)) && !defined(sgi)
+@@ -141,7 +141,7 @@
+ 
+ static PyObject *turnon_sigfpe(PyObject *self, PyObject *args)
+ {
+-#ifdef _MSC_VER
++#if (defined(_MSC_VER) || defined(__MINGW32__))
+   _clearfp();
+   fp_flags = _controlfp(_controlfp(0, 0) & ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW),
+                         _MCW_EM);
+@@ -166,7 +166,7 @@
+ 
+ static PyObject *turnoff_sigfpe(PyObject *self, PyObject *args)
+ {
+-#ifdef _MSC_VER
++#if (defined(_MSC_VER) || defined(__MINGW32__))
+   _controlfp(fp_flags, _MCW_EM);
+ 
+ #elif defined(__clang__)
